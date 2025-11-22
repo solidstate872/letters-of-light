@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hebrew Letters — Minimal Slideshow with Notes & Feather Mode</title>
+<style>
+:root{
+  --bg:#ffffff;
+  --fg:#111;
+  --caption:#444;
+  --control-bg:rgba(0,0,0,0.04);
+}
+html,body{
+  height:100%;
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto;
+}
+body.inverted { filter:invert(1) hue-rotate(180deg); transition:filter 240ms ease; }
+
+.wrap{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  padding:6vh 4vw;
+  gap:12px;
+  box-sizing:border-box;
+}
+
+.imgbox{
+  max-width:92vw;
+  max-height:78vh;
+  width:min(1100px,92vw);
+  height:min(740px,78vh);
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  user-select:none;
+}
+
+.slide{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+img.letter{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  transition:opacity 360ms ease;
+  opacity:0;
+}
+img.letter.show{ opacity:1; }
+
+.meta{ display:flex; flex-direction:column; align-items:center; text-align:center; }
+.name{ font-size:20px; font-weight:600; margin-top:6px; }
+.grammar{ font-size:14px; color:var(--caption); margin-top:2px; opacity:0.8; }
+.meaning{
+  font-size:16px; color:var(--caption);
+  max-width:80%; line-height:1.4; margin-top:4px;
+  text-align:center; opacity:0.8;
+}
+
+.controls{
+  display:flex; gap:8px; align-items:center;
+  background:var(--control-bg);
+  padding:6px 8px; border-radius:10px;
+  font-size:13px; color:var(--caption);
+  transition:opacity 0.3s;
+}
+
+.controls input[type="number"]{
+  width:64px; padding:4px 6px; border-radius:6px;
+  border:1px solid rgba(0,0,0,0.08); font-size:13px;
+}
+
+button.control-btn{
+  padding:4px 8px;
+  border-radius:6px;
+  border:none;
+  background:#f0f0f0;
+  cursor:pointer;
+  font-size:13px;
+}
+
+.instr{ font-size:12px; color:var(--caption); margin-top:6px; transition:opacity 0.3s; text-align:center; }
+
+/* Notes sidebar */
+#notesSidebar{
+  position:fixed;
+  top:50%;
+  right:60px;
+  transform:translateY(-50%);
+  width:260px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  background:rgba(255,255,255,0.95);
+  padding:12px;
+  border-radius:10px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.15);
+  z-index:100;
+  transition:opacity 0.3s, transform 0.3s;
+}
+#notesSidebar.hidden{
+  opacity:0; pointer-events:none; transform:translateY(-100%);
+}
+#noteIndex{
+  font-size:12px; color:var(--caption); text-align:center; width:auto;
+}
+textarea{ width:100%; min-height:80px; margin-bottom:6px; font-size:14px; padding:6px; border-radius:6px; border:1px solid rgba(0,0,0,0.1); resize: vertical; }
+button.clearNotesBtn{
+  padding:6px 10px; font-size:13px;
+  border-radius:6px; border:none; background:#f0f0f0;
+  cursor:pointer; margin-bottom:6px;
+}
+#noteSavedIndicator{
+  font-size:12px; color:green; opacity:0; transition:opacity 0.3s;
+}
+</style>
+</head>
+<body tabindex="0">
+
+<div class="wrap" id="root">
+
+  <div class="imgbox" id="imgbox">
+    <div class="slide"><img id="imgA" class="letter"></div>
+    <div class="slide"><img id="imgB" class="letter"></div>
+  </div>
+
+  <div class="meta">
+    <div class="name" id="letterName"></div>
+    <div class="grammar" id="letterGrammar"></div>
+    <div class="meaning" id="letterMeaning"></div>
+  </div>
+
+  <div class="controls">
+    <div>Auto:</div>
+    <input id="timerInput" type="number" min="1" value="3">
+    <button id="toggleAuto" class="control-btn">A: Off</button>
+    <div>Names:</div>
+    <button id="toggleNames" class="control-btn">N: On</button>
+    <div>Nav:</div>
+    <button id="cycleNav" class="control-btn">Mode: Space only</button>
+    <div>Invert:</div>
+    <button id="toggleInvert" class="control-btn">I</button>
+    <div>Feather:</div>
+    <button id="toggleFeather" class="control-btn">F</button>
+    <div>Notes:</div>
+    <button id="toggleNotes" class="control-btn">H</button>
+    <button id="toggleInstrBtn" class="control-btn">Info: Z</button>
+  </div>
+
+  <div class="instr" id="instrLine">Press the spacebar to navigate letters. Toggle Names with N, Notes with H, Feather mode with F, Invert colors with I, Auto-play with A, and Info with Z.</div>
+
+</div>
+
+<!-- Notes Sidebar -->
+<div id="notesSidebar">
+  <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+    <div id="noteIndex">1 / 22</div>
+    <button id="closeNotes" style="font-size:12px; padding:2px 6px; border:none; border-radius:4px; cursor:pointer;">✖</button>
+  </div>
+  <textarea id="letterNotes" placeholder="Write notes here..."></textarea>
+  <button id="clearNotes" class="clearNotesBtn">Clear Notes</button>
+  <div id="noteSavedIndicator">Note saved ✓</div>
+</div>
+
+<script>
+// --- DATA ---
+const images=[
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_aa31b6_01-aleph.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_41b637_02-beth.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_e2fcd5_03-guimel.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_c1d590_04-daleth.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_f386bb_05-he.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_ec32c2_06-vav.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_226fe7_07-zayin.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_67ee90_08-het.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_787c54_09-tet.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_812b63_10-yod.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_918b49_11-khaf.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_0b1d55_12-lamed.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_d2823a_13-mem.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_7c7dd7_14-noun.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_0ab17a_15-samekh.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_8e81a5_16-ayin.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_db0a5c_17-pe.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_95faf0_18-tsade.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_ae5e71_19-qof.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_25f00f_20-rech.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_7ed91d_21-shin.jpg",
+  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_648220_22-tav.jpg"
+];
+const names=[
+  "Aleph","Bet","Gimel","Daleth","He","Vav","Zayin","Het","Tet","Yod",
+  "Khaf","Lamed","Mem","Nun","Samekh","Ayin","Pe","Tsade","Qof","Resh","Shin","Tav"
+];
+const grammars=[
+  "Value: 1","Value: 2","Value: 3","Value: 4","Value: 5","Value: 6","Value: 7","Value: 8","Value: 9","Value: 10",
+  "Value: 20","Value: 30","Value: 40","Value: 50","Value: 60","Value: 70","Value: 80","Value: 90","Value: 100","Value: 200",
+  "Value: 300","Value: 400"
+];
+const meanings=[
+  "The breath of creation, unity, the unseen potential.",
+  "The house, container of creation, beginning of duality.",
+  "Movement, giving, spiritual kindness in action.",
+  "Doorway, humility, the path between worlds.",
+  "Divine breath, revelation, inspiration/light.",
+  "The hook, connection between heaven and earth.",
+  "Spiritual weapon, struggle that leads to growth.",
+  "Boundary, life-force, inner sanctuary.",
+  "Hidden goodness, purity, spiritual womb.",
+  "The point of divine energy, seed of all creation.",
+  "Palm of the hand, potential, manifestation in form.",
+  "Learning, aspiration, the heart’s upward movement.",
+  "Water, flow, the deep subconscious.",
+  "Faithfulness, the soul’s endurance, emergence.",
+  "Support, divine protection, surrounding light.",
+  "Seeing, perception, insight beyond surface.",
+  "Mouth, expression, power of speech and creation.",
+  "Righteousness, alignment, spiritual discipline.",
+  "Holiness, the hidden spark, the back of the head (mystery).",
+  "Beginning, head, human consciousness, potential for renewal.",
+  "Fire, transformation, the threefold flame.",
+  "Completion, seal of truth, the end that returns to beginning."
+];
+
+// --- ELEMENTS ---
+const imgA=document.getElementById("imgA");
+const imgB=document.getElementById("imgB");
+const letterNameEl=document.getElementById("letterName");
+const letterGrammarEl=document.getElementById("letterGrammar");
+const letterMeaningEl=document.getElementById("letterMeaning");
+const toggleAutoBtn=document.getElementById("toggleAuto");
+const toggleNamesBtn=document.getElementById("toggleNames");
+const toggleInvertBtn=document.getElementById("toggleInvert");
+const toggleFeatherBtn=document.getElementById("toggleFeather");
+const toggleNotesBtn=document.getElementById("toggleNotes");
+const cycleNavBtn=document.getElementById("cycleNav");
+const timerInput=document.getElementById("timerInput");
+const noteIndex=document.getElementById("noteIndex");
+const notesSidebar=document.getElementById("notesSidebar");
+const letterNotesEl=document.getElementById("letterNotes");
+const clearNotesBtn=document.getElementById("clearNotes");
+const noteSavedIndicator=document.getElementById("noteSavedIndicator");
+const instrLine=document.getElementById("instrLine");
+const toggleInstrBtn=document.getElementById("toggleInstrBtn");
+const closeNotesBtn = document.getElementById("closeNotes");
+
+let idx=0, showingA=true, showNames=true, autoOn=false, autoTimer=null, featherMode=false;
+const NAV_MODES=["All keys","Space only","Arrows only","Click only"];
+let navModeIndex=1;
+
+// --- FUNCTIONS ---
+function updateControls(){
+  toggleAutoBtn.textContent=`A: ${autoOn?"On":"Off"}`;
+  toggleNamesBtn.textContent=`N: ${showNames?"On":"Off"}`;
+  cycleNavBtn.textContent=`Mode: ${NAV_MODES[navModeIndex]}`;
+  noteIndex.textContent=`${idx+1} / ${images.length}`;
+}
+
+function setNames(on){
+  showNames = !!on;
+  letterNameEl.style.display=showNames?"block":"none";
+  letterGrammarEl.style.display=showNames?"block":"none";
+  letterMeaningEl.style.display=showNames?"block":"none";
+  updateControls();
+}
+
+function loadNotes(i){ letterNotesEl.value=localStorage.getItem(`hebrew_note_${i}`)||""; }
+
+function show(i){
+  if(i<0)i=images.length-1;
+  if(i>=images.length)i=0;
+  idx=i;
+  const nextSrc=images[idx], inEl=showingA?imgB:imgA, outEl=showingA?imgA:imgB;
+  inEl.src=nextSrc;
+  inEl.classList.remove("show"); void inEl.offsetWidth; inEl.classList.add("show");
+  outEl.classList.remove("show"); showingA=!showingA;
+  letterNameEl.textContent=names[idx];
+  letterGrammarEl.textContent=grammars[idx];
+  letterMeaningEl.textContent=meanings[idx];
+  loadNotes(idx);
+  setNames(showNames);
+  updateControls();
+}
+
+function navigateNext(){ show(idx+1); }
+function navigatePrev(){ show(idx-1); }
+
+function startAuto(){ stopAuto(); const s=Math.max(1,parseInt(timerInput.value,10)||3); autoOn=true; autoTimer=setInterval(()=>navigateNext(),s*1000); updateControls(); }
+function stopAuto(){ autoOn=false; if(autoTimer){clearInterval(autoTimer); autoTimer=null;} updateControls(); }
+function toggleInvert(){ document.body.classList.toggle("inverted"); updateControls(); }
+function toggleFeather(){ 
+  featherMode=!featherMode; 
+  const hideEls=[...document.querySelectorAll(".controls,.instr")];
+  hideEls.forEach(el=>{ 
+    if(el!==toggleInstrBtn) el.style.opacity=featherMode?"0":"1"; 
+    el.style.pointerEvents=featherMode?"none":"auto"; 
+  }); 
+  notesSidebar.classList.toggle("hidden",featherMode); 
+  updateControls(); 
+}
+function toggleNotes(){ notesSidebar.classList.toggle("hidden"); updateControls(); }
+
+function handleKey(ev){
+  const active=document.activeElement;
+  const isTyping=active&&(active.tagName==="TEXTAREA");
+  const key=ev.key.toUpperCase();
+  if(isTyping) return;
+  if(key==="F"){ toggleFeather(); return; }
+  if(key==="I"){ toggleInvert(); return; }
+  if(key==="N"){ setNames(!showNames); return; }
+  if(key==="A"){ autoOn?stopAuto():startAuto(); return; }
+  if(key==="K"){ navModeIndex=(navModeIndex+1)%NAV_MODES.length; updateControls(); return; }
+  if(key==="Z"){ instrLine.style.display=(instrLine.style.display==="none"?"block":"none"); return; }
+  if(key==="H"){ toggleNotes(); return; }
+  if(key==="BACKSPACE"){ navigatePrev(); return; }
+  if(key===" "){ navigateNext(); return; }
+  if(key==="ARROWRIGHT" && NAV_MODES[navModeIndex]!=="Space only"){ navigateNext(); return; }
+}
+
+imgbox.addEventListener("click",()=>{ 
+  if(NAV_MODES[navModeIndex]==="Click only" || NAV_MODES[navModeIndex]==="All keys") navigateNext(); 
+});
+
+toggleAutoBtn.onclick=()=>autoOn?stopAuto():startAuto();
+toggleNamesBtn.onclick=()=>setNames(!showNames);
+toggleInvertBtn.onclick=toggleInvert;
+toggleFeatherBtn.onclick=toggleFeather;
+toggleNotesBtn.onclick=toggleNotes;
+cycleNavBtn.onclick=()=>{ navModeIndex=(navModeIndex+1)%NAV_MODES.length; updateControls(); };
+toggleInstrBtn.onclick=()=>{ instrLine.style.display=(instrLine.style.display==="none"?"block":"none"); };
+clearNotesBtn.onclick=()=>{ letterNotesEl.value=""; localStorage.removeItem(`hebrew_note_${idx}`); noteSavedIndicator.style.opacity=1; setTimeout(()=>noteSavedIndicator.style.opacity=0,1200); };
+closeNotesBtn.onclick=()=>notesSidebar.classList.add("hidden");
+
+let saveTimeout;
+letterNotesEl.addEventListener("input", () => {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    localStorage.setItem(`hebrew_note_${idx}`, letterNotesEl.value);
+    noteSavedIndicator.style.opacity = 1;
+    setTimeout(()=>noteSavedIndicator.style.opacity = 0, 1200);
+  }, 1200);
+});
+
+document.addEventListener("keydown",handleKey);
+show(0);
+setNames(showNames);
+instrLine.style.display="block";
+</script>
+</body>
+</html>
