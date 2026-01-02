@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Hebrew Letters — Minimal Slideshow with Notes & Feather Mode</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hebrew Letters — Minimal Slideshow with Torah Module</title>
 <style>
 :root{
   --bg:#ffffff;
@@ -93,6 +93,14 @@ button.control-btn{
 
 .instr{ font-size:12px; color:var(--caption); margin-top:6px; transition:opacity 0.3s; text-align:center; }
 
+#torahLog{
+  font-size:14px;
+  color:var(--caption);
+  margin-bottom:6px;
+  min-height:18px;
+  text-align:center;
+}
+
 /* Notes sidebar */
 #notesSidebar{
   position:fixed;
@@ -116,6 +124,11 @@ button.control-btn{
 #noteIndex{
   font-size:12px; color:var(--caption); text-align:center; width:auto;
 }
+#notesSidebar select{
+  padding:4px 6px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); font-size:13px; background:#fff;
+}
+#notesSidebar button{ padding:4px 8px; font-size:13px; border-radius:6px; border:none; background:#f0f0f0; cursor:pointer; margin-top:2px; }
+
 textarea{ width:100%; min-height:80px; margin-bottom:6px; font-size:14px; padding:6px; border-radius:6px; border:1px solid rgba(0,0,0,0.1); resize: vertical; }
 button.clearNotesBtn{
   padding:6px 10px; font-size:13px;
@@ -130,6 +143,7 @@ button.clearNotesBtn{
 <body tabindex="0">
 
 <div class="wrap" id="root">
+  <div id="torahLog"></div>
 
   <div class="imgbox" id="imgbox">
     <div class="slide"><img id="imgA" class="letter"></div>
@@ -157,206 +171,196 @@ button.clearNotesBtn{
     <div>Notes:</div>
     <button id="toggleNotes" class="control-btn">H</button>
     <button id="toggleInstrBtn" class="control-btn">Info: Z</button>
+    <div>Module:</div>
+    <button id="toggleTorahModule" class="control-btn">M: Off</button>
   </div>
 
-  <div class="instr" id="instrLine">Press the spacebar to navigate letters. Toggle Names with N, Notes with H, Feather mode with F, Invert colors with I, Auto-play with A, and Info with Z.</div>
-
+  <div class="instr" id="instrLine">Press spacebar to navigate letters. Toggle Names with N, Notes with H, Feather F, Invert I, Auto A, Info Z, Module M.</div>
 </div>
 
 <!-- Notes Sidebar -->
 <div id="notesSidebar">
+  <div style="width:100%; display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap; justify-content:center;">
+    <select id="notesBook"></select>
+    <select id="notesChapter"></select>
+    <select id="notesVerse"></select>
+    <button id="notesLoadVerse" style="flex-shrink:0;">Load</button>
+  </div>
+
   <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
     <div id="noteIndex">1 / 22</div>
     <button id="closeNotes" style="font-size:12px; padding:2px 6px; border:none; border-radius:4px; cursor:pointer;">✖</button>
   </div>
+
   <textarea id="letterNotes" placeholder="Write notes here..."></textarea>
   <button id="clearNotes" class="clearNotesBtn">Clear Notes</button>
   <div id="noteSavedIndicator">Note saved ✓</div>
+  <button id="exportNotesBtn" class="control-btn" style="margin-bottom:4px;">Export Notes</button>
+  <button id="importNotesBtn" class="control-btn">Import Notes</button>
 </div>
 
 <script>
-// --- DATA ---
-const images=[
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_aa31b6_01-aleph.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_41b637_02-beth.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_e2fcd5_03-guimel.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_c1d590_04-daleth.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_f386bb_05-he.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_ec32c2_06-vav.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_226fe7_07-zayin.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_67ee90_08-het.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_787c54_09-tet.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_812b63_10-yod.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_918b49_11-khaf.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_0b1d55_12-lamed.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_d2823a_13-mem.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_7c7dd7_14-noun.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_0ab17a_15-samekh.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_8e81a5_16-ayin.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_db0a5c_17-pe.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_95faf0_18-tsade.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_ae5e71_19-qof.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_25f00f_20-rech.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_7ed91d_21-shin.jpg",
-  "https://img.over-blog-kiwi.com/1/92/85/78/20171202/ob_648220_22-tav.jpg"
-];
-const names=[
-  "Aleph","Bet","Gimel","Daleth","He","Vav","Zayin","Het","Tet","Yod",
-  "Khaf","Lamed","Mem","Nun","Samekh","Ayin","Pe","Tsade","Qof","Resh","Shin","Tav"
-];
-const grammars=[
-  "Value: 1","Value: 2","Value: 3","Value: 4","Value: 5","Value: 6","Value: 7","Value: 8","Value: 9","Value: 10",
-  "Value: 20","Value: 30","Value: 40","Value: 50","Value: 60","Value: 70","Value: 80","Value: 90","Value: 100","Value: 200",
-  "Value: 300","Value: 400"
-];
-const meanings=[
-  "The breath of creation, unity, the unseen potential.",
-  "The house, container of creation, beginning of duality.",
-  "Movement, giving, spiritual kindness in action.",
-  "Doorway, humility, the path between worlds.",
-  "Divine breath, revelation, inspiration/light.",
-  "The hook, connection between heaven and earth.",
-  "Spiritual weapon, struggle that leads to growth.",
-  "Boundary, life-force, inner sanctuary.",
-  "Hidden goodness, purity, spiritual womb.",
-  "The point of divine energy, seed of all creation.",
-  "Palm of the hand, potential, manifestation in form.",
-  "Learning, aspiration, the heart’s upward movement.",
-  "Water, flow, the deep subconscious.",
-  "Faithfulness, the soul’s endurance, emergence.",
-  "Support, divine protection, surrounding light.",
-  "Seeing, perception, insight beyond surface.",
-  "Mouth, expression, power of speech and creation.",
-  "Righteousness, alignment, spiritual discipline.",
-  "Holiness, the hidden spark, the back of the head (mystery).",
-  "Beginning, head, human consciousness, potential for renewal.",
-  "Fire, transformation, the threefold flame.",
-  "Completion, seal of truth, the end that returns to beginning."
-];
+// ----- Letters Data -----
+const images = [...Array(22)].map((_,i)=>`letters/${String(i+1).padStart(2,'0')}_${["aleph","bet","gimel","daleth","he","vav","zayin","het","tet","yod","khaf","lamed","mem","nun","samekh","ayin","pe","tsade","qof","resh","shin","tav"][i]}.png`);
+const names = ["Aleph","Bet","Gimel","Daleth","He","Vav","Zayin","Het","Tet","Yod","Khaf","Lamed","Mem","Nun","Samekh","Ayin","Pe","Tsade","Qof","Resh","Shin","Tav"];
+const grammars = ["Value: 1","Value: 2","Value: 3","Value: 4","Value: 5","Value: 6","Value: 7","Value: 8","Value: 9","Value: 10","Value: 20","Value: 30","Value: 40","Value: 50","Value: 60","Value: 70","Value: 80","Value: 90","Value: 100","Value: 200","Value: 300","Value: 400"];
+const meanings = ["The breath of creation, unity, the unseen potential.","The house, container of creation, beginning of duality.","Movement, giving, spiritual kindness in action.","Doorway, humility, the path between worlds.","Divine breath, revelation, inspiration/light.","The hook, connection between heaven and earth.","Spiritual weapon, struggle that leads to growth.","Boundary, life-force, inner sanctuary.","Hidden goodness, purity, spiritual womb.","The point of divine energy, seed of all creation.","Palm of the hand, potential, manifestation in form.","Learning, aspiration, the heart’s upward movement.","Water, flow, the deep subconscious.","Faithfulness, the soul’s endurance, emergence.","Support, divine protection, surrounding light.","Seeing, perception, insight beyond surface.","Mouth, expression, power of speech and creation.","Righteousness, alignment, spiritual discipline.","Holiness, the hidden spark, the back of the head (mystery).","Beginning, head, human consciousness, potential for renewal.","Fire, transformation, the threefold flame.","Completion, seal of truth, the end that returns to beginning."];
 
-// --- ELEMENTS ---
-const imgA=document.getElementById("imgA");
-const imgB=document.getElementById("imgB");
-const letterNameEl=document.getElementById("letterName");
-const letterGrammarEl=document.getElementById("letterGrammar");
-const letterMeaningEl=document.getElementById("letterMeaning");
-const toggleAutoBtn=document.getElementById("toggleAuto");
-const toggleNamesBtn=document.getElementById("toggleNames");
-const toggleInvertBtn=document.getElementById("toggleInvert");
-const toggleFeatherBtn=document.getElementById("toggleFeather");
-const toggleNotesBtn=document.getElementById("toggleNotes");
-const cycleNavBtn=document.getElementById("cycleNav");
-const timerInput=document.getElementById("timerInput");
-const noteIndex=document.getElementById("noteIndex");
-const notesSidebar=document.getElementById("notesSidebar");
-const letterNotesEl=document.getElementById("letterNotes");
-const clearNotesBtn=document.getElementById("clearNotes");
-const noteSavedIndicator=document.getElementById("noteSavedIndicator");
-const instrLine=document.getElementById("instrLine");
-const toggleInstrBtn=document.getElementById("toggleInstrBtn");
+// ----- Torah Data -----
+const torahModule = {"Genesis":{"1":{"1":"בראשית ברא אלהים את השמים ואת הארץ","2":"והארץ היתה תהו ובהו וחשך על פני תהום ורוח אלהים מרחפת על פני המים"}}};
+
+// ----- Base Map -----
+const baseMap = {"א":0,"ב":1,"ג":2,"ד":3,"ה":4,"ו":5,"ז":6,"ח":7,"ט":8,"י":9,"כ":10,"ך":10,"ל":11,"מ":12,"ם":12,"נ":13,"ן":13,"ס":14,"ע":15,"פ":16,"ף":16,"צ":17,"ץ":17,"ק":18,"ר":19,"ש":20,"ת":21};
+
+// ----- Elements -----
+const imgA = document.getElementById("imgA");
+const imgB = document.getElementById("imgB");
+const letterNameEl = document.getElementById("letterName");
+const letterGrammarEl = document.getElementById("letterGrammar");
+const letterMeaningEl = document.getElementById("letterMeaning");
+const toggleAutoBtn = document.getElementById("toggleAuto");
+const toggleNamesBtn = document.getElementById("toggleNames");
+const toggleInvertBtn = document.getElementById("toggleInvert");
+const toggleFeatherBtn = document.getElementById("toggleFeather");
+const toggleNotesBtn = document.getElementById("toggleNotes");
+const timerInput = document.getElementById("timerInput");
+const noteIndex = document.getElementById("noteIndex");
+const notesSidebar = document.getElementById("notesSidebar");
+const letterNotesEl = document.getElementById("letterNotes");
+const clearNotesBtn = document.getElementById("clearNotes");
+const noteSavedIndicator = document.getElementById("noteSavedIndicator");
+const instrLine = document.getElementById("instrLine");
 const closeNotesBtn = document.getElementById("closeNotes");
+const torahLog = document.getElementById("torahLog");
+const toggleTorahModuleBtn = document.getElementById("toggleTorahModule");
+const notesBook = document.getElementById("notesBook");
+const notesChapter = document.getElementById("notesChapter");
+const notesVerse = document.getElementById("notesVerse");
+const notesLoadVerse = document.getElementById("notesLoadVerse");
 
+// ----- State -----
 let idx=0, showingA=true, showNames=true, autoOn=false, autoTimer=null, featherMode=false;
-const NAV_MODES=["All keys","Space only","Arrows only","Click only"];
-let navModeIndex=1;
+let torahMode=false;
+let sequence = [...Array(images.length).keys()];
+let currentBook=null, currentChapter=null, currentVerse=null;
+let torahWords=[], torahWordIdx=0, torahLetterIdx=0;
 
 // --- FUNCTIONS ---
+// (1) Update UI Controls
 function updateControls(){
   toggleAutoBtn.textContent=`A: ${autoOn?"On":"Off"}`;
   toggleNamesBtn.textContent=`N: ${showNames?"On":"Off"}`;
-  cycleNavBtn.textContent=`Mode: ${NAV_MODES[navModeIndex]}`;
-  noteIndex.textContent=`${idx+1} / ${images.length}`;
+  toggleTorahModuleBtn.textContent=`M: ${torahMode?"On":"Off"}`;
+  noteIndex.textContent=`${idx+1} / ${sequence.length}`;
 }
 
+// (2) Show/hide names
 function setNames(on){
-  showNames = !!on;
+  showNames=!!on;
   letterNameEl.style.display=showNames?"block":"none";
   letterGrammarEl.style.display=showNames?"block":"none";
   letterMeaningEl.style.display=showNames?"block":"none";
   updateControls();
 }
 
+// (3) Load notes
 function loadNotes(i){ letterNotesEl.value=localStorage.getItem(`hebrew_note_${i}`)||""; }
 
+// (4) Show letter by idx
 function show(i){
-  if(i<0)i=images.length-1;
-  if(i>=images.length)i=0;
-  idx=i;
-  const nextSrc=images[idx], inEl=showingA?imgB:imgA, outEl=showingA?imgA:imgB;
-  inEl.src=nextSrc;
-  inEl.classList.remove("show"); void inEl.offsetWidth; inEl.classList.add("show");
+  if(i<0)i=sequence.length-1;if(i>=sequence.length)i=0; idx=i;
+  const nextIdx=sequence[idx]; const nextSrc=images[nextIdx];
+  const inEl=showingA?imgB:imgA; const outEl=showingA?imgA:imgB;
+  inEl.src=nextSrc; inEl.classList.remove("show"); void inEl.offsetWidth; inEl.classList.add("show");
   outEl.classList.remove("show"); showingA=!showingA;
-  letterNameEl.textContent=names[idx];
-  letterGrammarEl.textContent=grammars[idx];
-  letterMeaningEl.textContent=meanings[idx];
+  letterNameEl.textContent=names[nextIdx]; letterGrammarEl.textContent=grammars[nextIdx]; letterMeaningEl.textContent=meanings[nextIdx];
+  loadNotes(idx); setNames(showNames);
+  if(!torahMode) torahLog.textContent="";
+}
+
+// (5) Show Torah letter
+function showTorahLetter(){
+  if(!torahWords.length) return;
+  const word=torahWords[torahWordIdx]; const letter=word[torahLetterIdx]||"";
+  const mapped=baseMap[letter]!==undefined?baseMap[letter]:0;
+  idx=mapped;
+  const inEl=showingA?imgB:imgA; const outEl=showingA?imgA:imgB;
+  inEl.src=images[mapped]; inEl.classList.remove("show"); void inEl.offsetWidth; inEl.classList.add("show");
+  outEl.classList.remove("show"); showingA=!showingA;
+  letterNameEl.textContent=names[mapped]; letterGrammarEl.textContent=grammars[mapped]; letterMeaningEl.textContent=meanings[mapped];
   loadNotes(idx);
-  setNames(showNames);
-  updateControls();
+  const logParts=torahWords.map((w,wi)=>{if(wi!==torahWordIdx) return w; const chars=[...w]; chars[Math.min(torahLetterIdx,chars.length-1)] = `<strong>${chars[Math.min(torahLetterIdx,chars.length-1)]}</strong>`; return chars.join(""); });
+  torahLog.innerHTML=`${currentBook} ${currentChapter}:${currentVerse} — ${logParts.join(" ")}`;
 }
 
-function navigateNext(){ show(idx+1); }
-function navigatePrev(){ show(idx-1); }
-
-function startAuto(){ stopAuto(); const s=Math.max(1,parseInt(timerInput.value,10)||3); autoOn=true; autoTimer=setInterval(()=>navigateNext(),s*1000); updateControls(); }
-function stopAuto(){ autoOn=false; if(autoTimer){clearInterval(autoTimer); autoTimer=null;} updateControls(); }
-function toggleInvert(){ document.body.classList.toggle("inverted"); updateControls(); }
-function toggleFeather(){ 
-  featherMode=!featherMode; 
-  const hideEls=[...document.querySelectorAll(".controls,.instr")];
-  hideEls.forEach(el=>{ 
-    if(el!==toggleInstrBtn) el.style.opacity=featherMode?"0":"1"; 
-    el.style.pointerEvents=featherMode?"none":"auto"; 
-  }); 
-  notesSidebar.classList.toggle("hidden",featherMode); 
-  updateControls(); 
-}
-function toggleNotes(){ notesSidebar.classList.toggle("hidden"); updateControls(); }
-
-function handleKey(ev){
-  const active=document.activeElement;
-  const isTyping=active&&(active.tagName==="TEXTAREA");
-  const key=ev.key.toUpperCase();
-  if(isTyping) return;
-  if(key==="F"){ toggleFeather(); return; }
-  if(key==="I"){ toggleInvert(); return; }
-  if(key==="N"){ setNames(!showNames); return; }
-  if(key==="A"){ autoOn?stopAuto():startAuto(); return; }
-  if(key==="K"){ navModeIndex=(navModeIndex+1)%NAV_MODES.length; updateControls(); return; }
-  if(key==="Z"){ instrLine.style.display=(instrLine.style.display==="none"?"block":"none"); return; }
-  if(key==="H"){ toggleNotes(); return; }
-  if(key==="BACKSPACE"){ navigatePrev(); return; }
-  if(key===" "){ navigateNext(); return; }
-  if(key==="ARROWRIGHT" && NAV_MODES[navModeIndex]!=="Space only"){ navigateNext(); return; }
+// (6) Advance Torah
+function advanceTorah(){
+  if(!torahWords.length) return;
+  torahLetterIdx++; if(torahLetterIdx>=(torahWords[torahWordIdx]?.length||0)){torahLetterIdx=0; torahWordIdx++; if(torahWordIdx>=torahWords.length) torahWordIdx=0;}
+  showTorahLetter();
 }
 
-imgbox.addEventListener("click",()=>{ 
-  if(NAV_MODES[navModeIndex]==="Click only" || NAV_MODES[navModeIndex]==="All keys") navigateNext(); 
+// (7) Feather
+function applyFeather(){ document.querySelectorAll('.controls,.instr,#notesSidebar').forEach(el=>el.style.display=featherMode?'none':''); }
+
+// (8) Toggle Torah module
+function toggleTorahModule(){ torahMode=!torahMode; updateControls(); if(torahMode){currentBook="Genesis";currentChapter="1";currentVerse="1"; torahWords=torahModule[currentBook][currentChapter][currentVerse].split(" "); torahWordIdx=0;torahLetterIdx=0; showTorahLetter();} else show(idx); }
+
+// (9) Notes selectors
+function populateNotesSelectors(){ notesBook.innerHTML=Object.keys(torahModule).map(b=>`<option value="${b}">${b}</option>`).join(""); notesBook.onchange=updateChapters; updateChapters(); }
+function updateChapters(){ const b=notesBook.value; notesChapter.innerHTML=Object.keys(torahModule[b]||{}).map(c=>`<option value="${c}">${c}</option>`).join(""); updateVerses();}
+function updateVerses(){ const b=notesBook.value; const c=notesChapter.value; notesVerse.innerHTML=Object.keys(torahModule[b][c]||{}).map(v=>`<option value="${v}">${v}</option>`).join(""); }
+notesLoadVerse.addEventListener("click",()=>{ currentBook=notesBook.value; currentChapter=notesChapter.value; currentVerse=notesVerse.value; torahWords=torahModule[currentBook][currentChapter][currentVerse].split(" "); torahWordIdx=0;torahLetterIdx=0; torahMode=true; updateControls(); showTorahLetter();});
+populateNotesSelectors();
+
+// ----- Event Listeners -----
+document.body.addEventListener("keydown", e=>{
+  if(e.code==="Space") e.preventDefault(), torahMode?advanceTorah():show(idx+1);
+  if(e.code==="ArrowRight") torahMode?advanceTorah():show(idx+1);
+  if(e.code==="ArrowLeft") show(idx-1);
+  if(e.code==="KeyN") setNames(!showNames);
+  if(e.code==="KeyI") document.body.classList.toggle("inverted");
+  if(e.code==="KeyF"){ featherMode=!featherMode; applyFeather(); }
+  if(e.code==="KeyH"){ notesSidebar.classList.toggle("hidden"); }
+  if(e.code==="KeyZ"){ instrLine.style.display=(instrLine.style.display==="none"?"block":"none"); }
+  if(e.code==="KeyA"){
+    autoOn=!autoOn; updateControls(); clearInterval(autoTimer);
+    if(autoOn){ torahMode?advanceTorah():show(idx+1); autoTimer=setInterval(()=>torahMode?advanceTorah():show(idx+1), timerInput.value*1000); }
+  }
+  if(e.code==="KeyM") toggleTorahModule();
 });
 
-toggleAutoBtn.onclick=()=>autoOn?stopAuto():startAuto();
-toggleNamesBtn.onclick=()=>setNames(!showNames);
-toggleInvertBtn.onclick=toggleInvert;
-toggleFeatherBtn.onclick=toggleFeather;
-toggleNotesBtn.onclick=toggleNotes;
-cycleNavBtn.onclick=()=>{ navModeIndex=(navModeIndex+1)%NAV_MODES.length; updateControls(); };
-toggleInstrBtn.onclick=()=>{ instrLine.style.display=(instrLine.style.display==="none"?"block":"none"); };
-clearNotesBtn.onclick=()=>{ letterNotesEl.value=""; localStorage.removeItem(`hebrew_note_${idx}`); noteSavedIndicator.style.opacity=1; setTimeout(()=>noteSavedIndicator.style.opacity=0,1200); };
-closeNotesBtn.onclick=()=>notesSidebar.classList.add("hidden");
+toggleFeatherBtn.addEventListener("click", ()=>{ featherMode=!featherMode; applyFeather(); });
+toggleInvertBtn.addEventListener("click", ()=>document.body.classList.toggle("inverted"));
+toggleNamesBtn.addEventListener("click", ()=>setNames(!showNames));
+toggleAutoBtn.addEventListener("click", ()=>document.body.dispatchEvent(new KeyboardEvent("keydown",{code:"KeyA"})));
+toggleNotesBtn.addEventListener("click", ()=>notesSidebar.classList.toggle("hidden"));
+toggleTorahModuleBtn.addEventListener("click", toggleTorahModule);
+closeNotesBtn.addEventListener("click", ()=>notesSidebar.classList.add("hidden"));
 
-let saveTimeout;
-letterNotesEl.addEventListener("input", () => {
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(() => {
-    localStorage.setItem(`hebrew_note_${idx}`, letterNotesEl.value);
-    noteSavedIndicator.style.opacity = 1;
-    setTimeout(()=>noteSavedIndicator.style.opacity = 0, 1200);
-  }, 1200);
+// ----- Notes -----
+letterNotesEl.addEventListener("input", ()=>{
+  localStorage.setItem(`hebrew_note_${idx}`,letterNotesEl.value);
+  noteSavedIndicator.style.opacity=1;
+  clearTimeout(letterNotesEl._timeout);
+  letterNotesEl._timeout=setTimeout(()=>{noteSavedIndicator.style.opacity=0;},1200);
+});
+clearNotesBtn.addEventListener("click", ()=>{ letterNotesEl.value=""; localStorage.removeItem(`hebrew_note_${idx}`); noteSavedIndicator.style.opacity=1; setTimeout(()=>noteSavedIndicator.style.opacity=0,1200); });
+document.getElementById("exportNotesBtn").addEventListener("click", ()=>{
+  const data={}; for(let i=0;i<images.length;i++) data[i]=localStorage.getItem(`hebrew_note_${i}`)||"";
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="hebrew_notes.json"; a.click(); URL.revokeObjectURL(url);
+});
+document.getElementById("importNotesBtn").addEventListener("click", ()=>{
+  const input=document.createElement("input"); input.type="file"; input.accept=".json";
+  input.onchange=e=>{ const file=e.target.files[0]; if(!file) return; const reader=new FileReader();
+    reader.onload=()=>{ try{ const obj=JSON.parse(reader.result); for(let i in obj) localStorage.setItem(`hebrew_note_${i}`,obj[i]); alert("Notes imported!"); }catch(err){alert("Invalid file");}};
+    reader.readAsText(file);
+  }; input.click();
 });
 
-document.addEventListener("keydown",handleKey);
-show(0);
-setNames(showNames);
-instrLine.style.display="block";
+// ----- Init -----
+show(idx); updateControls(); setNames(showNames); applyFeather();
 </script>
 </body>
 </html>
